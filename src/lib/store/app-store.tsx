@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import { todayISO } from "@/lib/domain/dates";
@@ -41,8 +40,8 @@ interface AppStoreActions {
   setWarningDays: (days: number) => void;
   createMenu: (days: number) => void;
   regenerateMenu: () => void;
-  swapMeal: (mealId: string) => boolean;
-  cookMeal: (mealId: string, deductions: Deduction[]) => number;
+  swapMeal: (mealId: string) => void;
+  cookMeal: (mealId: string, deductions: Deduction[]) => void;
   removeDemoData: () => void;
   clearAllData: () => void;
   loadDemoData: () => void;
@@ -64,25 +63,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
 
-  const stateRef = useRef<AppState | null>(null);
-  stateRef.current = state;
-
   useEffect(() => {
     const result = loadState();
     setStorageAvailable(result.storageAvailable);
     if (result.error) setStorageError(result.error);
 
-    if (result.state) {
-      setState(result.state);
-    } else {
-      const demo = createDemoState(todayISO());
-      if (!result.storageAvailable) {
-        // Показываем данные, но честно предупреждаем, что они не сохранятся.
-        setState(demo);
-      } else {
-        setState(demo);
-      }
-    }
+    // Без сохранённых данных (или при повреждении) стартуем с демо-набора.
+    // Если хранилища нет, storageError уже предупреждает, что данные не сохранятся.
+    setState(result.state ?? createDemoState(todayISO()));
     setReady(true);
   }, []);
 
@@ -124,10 +112,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           }),
         ),
       ),
-    regenerateMenu: () => {
-      const current = stateRef.current;
-      if (!current) return;
-      setState(
+    regenerateMenu: () =>
+      mutate((current) =>
         setMenu(
           current,
           generateMenu({
@@ -138,23 +124,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             seed: `${Date.now()}-${Math.random()}`,
           }),
         ),
-      );
-    },
-    swapMeal: (mealId) => {
-      const current = stateRef.current;
-      if (!current) return false;
-      const next = swapMealInPlan(current, mealId);
-      if (next === current) return false;
-      setState(next);
-      return true;
-    },
-    cookMeal: (mealId, deductions) => {
-      const current = stateRef.current;
-      if (!current) return 0;
-      const result = cookMeal(current, mealId, deductions);
-      setState(result.state);
-      return result.deducted.length;
-    },
+      ),
+    // Результат не возвращаем: updater выполняется при рендере, а не здесь.
+    swapMeal: (mealId) =>
+      mutate((current) => swapMealInPlan(current, mealId)),
+    cookMeal: (mealId, deductions) =>
+      mutate((current) => cookMeal(current, mealId, deductions).state),
     removeDemoData: () => mutate(removeDemoData),
     clearAllData: () => mutate(clearAllData),
     loadDemoData: () => setState(createDemoState(todayISO())),
