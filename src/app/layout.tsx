@@ -6,6 +6,7 @@ import { AppStoreProvider } from "@/lib/store/app-store";
 import { ToastProvider } from "@/components/ui/toast";
 import { ProductDialogProvider } from "@/components/products/product-dialog-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ProductDialogProvider>
           </ToastProvider>
         </AppStoreProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
